@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Projeto 3 NoSQL · Banco Orientado a Grafo (Neo4j) + Sistema de Recomendação</title>
+<style>
+  :root {
+    --navy: #002b6b;
+    --unifor: #0044a8;
+    --blue: #1a66cc;
+    --sky: #e8f1ff;
+    --teal: #0f766e;
+    --amber: #b45309;
+    --purple: #6d28d9;
+    --danger: #b91c1c;
+    --success: #15803d;
+    --bg: #0f172a;
+    --card: #ffffff;
+    --ink: #0f172a;
+    --muted: #475569;
+    --border: #cbd5e1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  header.topbar {
+    background: #0b1220;
+    color: #e2e8f0;
+    padding: 8px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e293b;
+    font-size: 13px;
+    gap: 12px;
+  }
+  .topbar .brand { font-weight: 700; color: #93c5fd; letter-spacing: 0.2px; }
+  .topbar .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    background: #1e293b;
+    color: #f8fafc;
+    border: 1px solid #334155;
+    padding: 5px 11px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .btn:hover { background: #334155; }
+  .btn.primary { background: var(--blue); border-color: var(--blue); }
+  .btn.primary:hover { background: var(--unifor); }
+  .btn.warn { background: #9a3412; border-color: #9a3412; }
+  .btn.success { background: #166534; border-color: #166534; }
+  main.stage {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 14px 20px;
+    overflow: hidden;
+    position: relative;
+  }
+  .slide {
+    display: none;
+    width: 100%;
+    max-width: 1240px;
+    height: 100%;
+    max-height: 700px;
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.45);
+    padding: 32px 42px 26px;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow-y: auto;
+    position: relative;
+    border-top: 7px solid var(--unifor);
+  }
+  .slide.active { display: flex; }
+  .slide.cover {
+    background: linear-gradient(135deg, #002157 0%, #0044a8 65%, #0e7490 100%);
+    color: #ffffff;
+    border-top: none;
+    justify-content: center;
+    text-align: left;
+    padding: 54px;
+  }
+  .slide-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 10px;
+    margin-bottom: 16px;
+  }
+  .slide-header h2 {
+    font-size: 26px;
+    color: var(--navy);
+    font-weight: 800;
+  }
+  .badge {
+    display: inline-block;
+    background: var(--sky);
+    color: var(--unifor);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .badge.barema { background: #dcfce7; color: #166534; }
+  .slide-body { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  .slide-footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #64748b;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 8px;
+    margin-top: 12px;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .card h3 { font-size: 16px; color: var(--unifor); margin-bottom: 8px; }
+  .card.accent { border-left: 4px solid var(--blue); }
+  .card.green { border-left: 4px solid var(--success); background: #f0fdf4; }
+  .card.red { border-left: 4px solid var(--danger); background: #fef2f2; }
+  ul.clean { padding-left: 18px; display: flex; flex-direction: column; gap: 7px; font-size: 15px; line-height: 1.42; }
+  table.data {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  table.data th, table.data td {
+    border: 1px solid #cbd5e1;
+    padding: 7px 10px;
+    text-align: left;
+  }
+  table.data th { background: var(--navy); color: #ffffff; font-weight: 700; }
+  table.data tr:nth-child(even) td { background: #f8fafc; }
+  pre.code {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-family: Consolas, "Fira Code", monospace;
+    font-size: 12.5px;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+  .kw { color: #93c5fd; font-weight: 700; }
+  .lbl { color: #fbbf24; }
+  .str { color: #86efac; }
+  .callout {
+    background: #eff6ff;
+    border-left: 4px solid var(--unifor);
+    padding: 10px 14px;
+    border-radius: 0 8px 8px 0;
+    font-size: 14.5px;
+  }
+  .notes-drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #111827;
+    color: #f1f5f9;
+    padding: 12px 24px;
+    border-top: 2px solid #3b82f6;
+    font-size: 13.5px;
+    display: none;
+    z-index: 40;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .notes-drawer.open { display: block; }
+  /* Demo Simulator styles (Slide 14) */
+  .sim-layout { display: grid; grid-template-columns: 330px 1fr; gap: 12px; height: 100%; min-height: 490px; }
+  .sim-sidebar {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+  }
+  .step-btn {
+    text-align: left;
+    padding: 6px 9px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .step-btn:hover { background: #eff6ff; border-color: #60a5fa; }
+  .step-btn.active { background: var(--unifor); color: #ffffff; border-color: var(--unifor); }
+  .sim-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .sim-canvas-wrap {
+    flex: 1;
+    background: #0b1120;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    position: relative;
+    min-height: 250px;
+    overflow: hidden;
+  }
+  #graphSvg { width: 100%; height: 100%; display: block; }
+  .sim-output {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 10px 12px;
+    max-height: 195px;
+    overflow-y: auto;
+    font-size: 12.5px;
+  }
+  .sim-legend {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: #e2e8f0;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+  .grid-overview {
+    position: fixed; inset: 42px 0 0 0;
+    background: rgba(15, 23, 42, 0.96);
+    padding: 24px;
+    display: none;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    overflow-y: auto;
+    z-index: 50;
+  }
+  .grid-overview.open { display: grid; }
+  .thumb {
+    background: #1e293b; color: #f8fafc; border: 1px solid #334155;
+    border-radius: 8px; padding: 12px; cursor: pointer; font-size: 13px;
+  }
+  .thumb:hover { border-color: #60a5fa; background: #26354d; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">UNIFOR 26.2 · Projeto de Banco de Dados · Projeto 3 NoSQL (Grafos / Neo4j)</div>
+  <div class="controls">
+    <span id="timerDisplay" style="font-family:monospace; color:#cbd5e1;">00:00</span>
+    <button class="btn" onclick="toggleTimer()" title="Iniciar/Pausar cronômetro">Cronômetro</button>
+    <button class="btn" onclick="toggleGrid()" title="Tecla G">Índice (G)</button>
+    <button class="btn" onclick="toggleNotes()" title="Tecla N">Notas (N)</button>
+    <button class="btn" onclick="prevSlide()">◀ Anterior</button>
+    <span id="slideCounter" style="font-weight:700; min-width:54px; text-align:center;">1 / 15</span>
+    <button class="btn primary" onclick="nextSlide()">Próximo ▶</button>
+  </div>
+</header>
+
+<main class="stage">
+
+  <!-- SLIDE 1: CAPA -->
+  <section class="slide cover active" data-title="Capa" data-notes="0,5 min. Apresentar o tema sorteado (Paradigma 5: Orientado a Grafo), o SGBD escolhido (Neo4j) e o sistema escolhido no tópico 6 (Sistema de Recomendação de Filmes).">
+    <div style="display:flex; flex-direction:column; gap:20px; max-width:960px;">
+      <div style="font-size:15px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#93c5fd;">
+        Universidade de Fortaleza (Unifor) · Projeto de Banco de Dados (26.2)
+      </div>
+      <h1 style="font-size:46px; line-height:1.12; font-weight:900;">
+        Bancos de Dados NoSQL:<br/>Orientado a Grafo com Neo4j
+      </h1>
+      <p style="font-size:21px; color:#e0f2fe; line-height:1.45;">
+        Aplicação prática em <strong>Sistema de Recomendação de Filmes</strong> (estilo streaming) com CRUD ao vivo em Cypher
+      </p>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:14px;">
+        <div style="background:rgba(255,255,255,0.12); padding:14px; border-radius:10px;">
+          <div style="font-size:12px; color:#bfdbfe;">PARADIGMA SORTEADO</div>
+          <div style="font-size:17px; font-weight:700; margin-top:4px;">5 · Orientado a Grafo</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.12); padding:14px; border-radius:10px;">
+          <div style="font-size:12px; color:#bfdbfe;">SGBD & LINGUAGEM</div>
+          <div style="font-size:17px; font-weight:700; margin-top:4px;">Neo4j · Cypher (ISO GQL)</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.12); padding:14px; border-radius:10px;">
+          <div style="font-size:12px; color:#bfdbfe;">PROFESSORA</div>
+          <div style="font-size:17px; font-weight:700; margin-top:4px;">Ana Maria Quevedo</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 2: PARADIGMA DE GRAFO -->
+  <section class="slide" data-title="O paradigma de grafo" data-notes="2 min. Citar a definição da Aula 11 (Marko Rodriguez) e o conceito whiteboard-friendly. Diferenciar Labeled Property Graph (Neo4j) de RDF/Triplas (AllegroGraph) e Banco Transacional (Neo4j) de Motor de Processamento Batch (Apache Giraph, listado no PDF).">
+    <div class="slide-header">
+      <h2>1. O Paradigma Orientado a Grafo</h2>
+      <span class="badge barema">Tópico 1 · 2,0 pts (com SGBD)</span>
+    </div>
+    <div class="slide-body">
+      <div class="callout">
+        <strong>Definição (Marko Rodriguez — Aula 11, Slide 29):</strong> "Grafo é uma estrutura de dados que conecta um conjunto de <strong>vértices (nós)</strong> através de um conjunto de <strong>arestas (relacionamentos)</strong>." É um modelo <strong><em>whiteboard-friendly</em></strong>: o que desenhamos no quadro branco é exatamente o que gravamos no banco.
+      </div>
+      <div class="grid-2">
+        <div class="card accent">
+          <h3>Blocos Básicos do Grafo de Propriedades (LPG)</h3>
+          <ul class="clean">
+            <li><strong>Nós (Vértices):</strong> representam entidades (ex.: <code>:Usuario</code>, <code>:Filme</code>).</li>
+            <li><strong>Rótulos (<em>Labels</em>):</strong> classificam o papel do nó (ex.: <code>:Ator</code>).</li>
+            <li><strong>Relacionamentos (Arestas):</strong> conexões direcionadas e nomeadas entre nós (ex.: <code>[:ASSISTIU]</code>).</li>
+            <li><strong>Propriedades:</strong> pares chave-valor armazenados <em>tanto</em> em nós quanto em relacionamentos (ex.: <code>nota: 5</code>).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Dois Modelos e Dois Tipos de Ferramenta</h3>
+          <ul class="clean">
+            <li><strong>Property Graph (LPG):</strong> nós e arestas carregam propriedades internas (<strong>Neo4j, JanusGraph, Amazon Neptune</strong>).</li>
+            <li><strong>RDF / Triplas:</strong> formato <code>sujeito–predicado–objeto</code> focado em Web Semântica/SPARQL (<strong>AllegroGraph, Neptune</strong>).</li>
+            <li><strong>Banco de Grafo (OLTP):</strong> consultas e escritas em tempo real (<strong>Neo4j</strong>).</li>
+            <li><strong>Processamento de Grafo (OLAP):</strong> análise distribuída em lote sobre grafos estáticos (<strong>Apache Giraph</strong>, inspirado no Pregel do Google).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Base: Aula 11 (Slides 29–30) &amp; Graph Databases (O'Reilly)</span><span>Slide 2 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 3: RELACIONAL VS GRAFO -->
+  <section class="slide" data-title="Relacional × Grafo" data-notes="1,5 min. Mostrar que no relacional a relação é reconstruída na consulta (JOIN em tempo de execução), enquanto no grafo ela é materializada em disco/RAM como ponteiro. Destacar o benchmark do livro Neo4j in Action (1 milhão de pessoas).">
+    <div class="slide-header">
+      <h2>Relacional × Grafo: JOIN na Consulta vs. Relação Gravada</h2>
+      <span class="badge barema">Tópico 1</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card red">
+          <h3>Modelo Relacional (SQL)</h3>
+          <ul class="clean">
+            <li>Relacionamentos N:N exigem <strong>tabelas associativas</strong> e chaves estrangeiras.</li>
+            <li>Cada salto de conexão obriga o SGBD a executar um novo <strong>JOIN</strong> com busca em índice (B-tree).</li>
+            <li>Quanto maior a profundidade (amigos de amigos de amigos), maior a explosão combinatória de linhas intermediárias.</li>
+          </ul>
+        </div>
+        <div class="card green">
+          <h3>Banco Orientado a Grafo (Neo4j)</h3>
+          <ul class="clean">
+            <li>As relações já são <strong>armazenadas fisicamente como ponteiros diretos</strong> no momento da escrita.</li>
+            <li>Em Cypher, aumentar a profundidade é apenas expandir o padrão: <code>(a)-[:AMIGO*1..3]->(b)</code>.</li>
+            <li>O tempo depende da <strong>vizinhança percorrida</strong>, não do tamanho total da tabela.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Benchmark Real — <em>Neo4j in Action</em> (Vukotic et al., Cap. 1 · 1 milhão de usuários)</h3>
+        <table class="data">
+          <thead>
+            <tr><th>Profundidade (Saltos)</th><th>MySQL (Relacional)</th><th>Neo4j (Grafo)</th><th>Impacto Prático</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Profundidade 2 (amigos de amigos)</td><td>0,016 s</td><td><strong>0,010 s</strong></td><td>Ambos instantâneos</td></tr>
+            <tr><td>Profundidade 3</td><td>30,267 s</td><td><strong>0,168 s</strong></td><td>Neo4j ~180× mais rápido</td></tr>
+            <tr><td>Profundidade 4</td><td>1.543,505 s (~25,7 min)</td><td><strong>1,359 s</strong></td><td>SQL inviável para tempo real</td></tr>
+            <tr><td>Profundidade 5</td><td>Não terminou em 1 h (timeout)</td><td><strong>2,132 s</strong></td><td>Grafo mantém latência previsível</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Fonte: Vukotic et al. (Neo4j in Action, Cap. 1) &amp; Robinson et al. (Graph Databases)</span><span>Slide 3 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 4: ONDE SE USA GRAFO + AULA 11 -->
+  <section class="slide" data-title="Onde se usa grafo" data-notes="1 min. Citar aplicações típicas (redes sociais, recomendação, antifraude, knowledge graphs, TI/redes, logística, IAM) e mostrar o alinhamento com a tabela comparativa dos 4 paradigmas da Aula 11 (Slide 32).">
+    <div class="slide-header">
+      <h2>Onde se Usa Grafo (e Comparativo da Aula 11)</h2>
+      <span class="badge barema">Tópico 1</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-3">
+        <div class="card accent"><h3>Redes Sociais</h3><p style="font-size:13.5px;">Feed de atividades, grafo de seguidores e grau de separação (ex.: Adobe Behance).</p></div>
+        <div class="card accent"><h3>Recomendação</h3><p style="font-size:13.5px;">Filtragem colaborativa e por conteúdo em tempo real (ex.: Walmart, nosso projeto).</p></div>
+        <div class="card accent"><h3>Detecção de Fraude</h3><p style="font-size:13.5px;">Identificar anéis de contas compartilhando IP, cartão ou dispositivo em ms.</p></div>
+        <div class="card"><h3>Grafos de Conhecimento</h3><p style="font-size:13.5px;">Conexão semântica de documentos e dados corporativos (ex.: NASA, ICIJ).</p></div>
+        <div class="card"><h3>Redes, TI &amp; Linhagem</h3><p style="font-size:13.5px;">Análise de impacto de falhas em infraestrutura e metadados (ex.: Lyft Amundsen).</p></div>
+        <div class="card"><h3>Logística &amp; Controle de Acesso</h3><p style="font-size:13.5px;">Rotas de entrega e árvores hierárquicas de permissões (IAM/RBAC).</p></div>
+      </div>
+      <div class="card">
+        <h3>Comparativo dos Paradigmas NoSQL — Aula 11 (Slide 32)</h3>
+        <table class="data">
+          <thead><tr><th>Paradigma</th><th>Estrutura</th><th>Melhor Uso</th><th>Persistente</th><th>Escalável</th><th>CAP</th></tr></thead>
+          <tbody>
+            <tr><td>Documentos (MongoDB)</td><td>JSON / BSON</td><td>Dados semiestruturados</td><td>Sim</td><td>Sim</td><td>AP</td></tr>
+            <tr><td>Família de Colunas (Cassandra)</td><td>Famílias de colunas</td><td>Grandes volumes e análises</td><td>Sim</td><td>Sim</td><td>AP</td></tr>
+            <tr style="background:#dbeafe; font-weight:700;"><td>Grafos (Neo4j)</td><td>Nós e arestas</td><td>Relações complexas</td><td>Sim</td><td>Sim*</td><td>CP</td></tr>
+            <tr><td>Chave-Valor (Redis)</td><td>Chave/valor em RAM</td><td>Cache e acessos simples</td><td>Opcional</td><td>Sim</td><td>AP ou CP</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="slide-footer"><span>*No Neo4j, leituras escalam horizontalmente em réplicas; escritas passam pelo líder (Slide 10).</span><span>Slide 4 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 5: NEO4J QUEM ONDE POR QUE -->
+  <section class="slide" data-title="Neo4j: quem, onde, por quê" data-notes="1,5 min. Responder explicitamente às 3 perguntas do barema: Quem (Emil Eifrem, Johan Svensson, Peter Neubauer), Onde (Malmö, Suécia), Por quê (gargalo com dados conectados de um CMS em banco relacional).">
+    <div class="slide-header">
+      <h2>2. Neo4j: Quem, Onde, Quando e Por Quê</h2>
+      <span class="badge barema">Tópico 2 · 2,0 pts</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card accent">
+          <h3>Origem do Projeto</h3>
+          <ul class="clean">
+            <li><strong>Quem criou:</strong> <strong>Emil Eifrem</strong>, <strong>Johan Svensson</strong> e <strong>Peter Neubauer</strong>.</li>
+            <li><strong>Onde nasceu:</strong> em <strong>Malmö, Suécia</strong> (hoje a empresa Neo4j, Inc. tem sede em San Mateo, Califórnia).</li>
+            <li><strong>Por quê ("4j" = <em>for Java</em>):</strong> em 2000, construíam um sistema de gestão de conteúdo (CMS) corporativo e o banco relacional travava com múltiplos <code>JOIN</code>s para navegar conteúdos interligados.</li>
+            <li><strong>A ideia do guardanapo:</strong> Emil Eifrem esboçou o modelo em um voo para Mumbai em 2000 para tratar relações como cidadãs de primeira classe.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Linha do Tempo</h3>
+          <ul class="clean">
+            <li><strong>2000:</strong> Primeiros protótipos internos em Java na Suécia.</li>
+            <li><strong>2007:</strong> Lançamento em código aberto e fundação da empresa <strong>Neo Technology</strong>.</li>
+            <li><strong>2010 (fev):</strong> Lançamento da versão <strong>1.0 GA</strong> para produção.</li>
+            <li><strong>2011 / 2015:</strong> Criação da linguagem <strong>Cypher</strong> e abertura como <em>openCypher</em>.</li>
+            <li><strong>2024–Hoje:</strong> Cypher serve de base (~95%) para o padrão internacional <strong>ISO/IEC 39075:2024 (GQL)</strong>; líder absoluto no ranking DB-Engines de bancos de grafo.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>Resumo para o Barema:</strong> Criado em 2000 em <strong>Malmö (Suécia)</strong> por <strong>Eifrem, Svensson e Neubauer</strong> para resolver lentidão e rigidez de bancos relacionais em dados altamente conectados.
+      </div>
+    </div>
+    <div class="slide-footer"><span>Fontes: Neo4j History &amp; DB-Engines Graph DBMS Ranking</span><span>Slide 5 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 6: NEO4J COMO OPERA -->
+  <section class="slide" data-title="Neo4j: como opera" data-notes="2 min. Explicar o armazenamento nativo em arquivos separados, index-free adjacency (diagrama comparativo obrigatório), Cypher + ISO GQL, ACID completo, cluster com consenso Raft e classificação CP no teorema CAP (alinhado à Aula 11).">
+    <div class="slide-header">
+      <h2>Neo4j: Como Opera e Como Implementa o Paradigma</h2>
+      <span class="badge barema">Tópico 2 · Diagrama Obrigatório</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card">
+          <h3>Arquitetura Interna</h3>
+          <ul class="clean">
+            <li><strong>Armazenamento Nativo:</strong> arquivos distintos de tamanho fixo para nós, relacionamentos e propriedades.</li>
+            <li><strong><em>Index-Free Adjacency</em>:</strong> cada nó aponta diretamente para seu primeiro relacionamento; cada relacionamento aponta para os dois nós. Seguir uma conexão custa <strong>O(1)</strong>.</li>
+            <li><strong>Cypher &amp; ISO GQL:</strong> padrões visuais em ASCII <code>(u:Usuario)-[:ASSISTIU]->(f:Filme)</code>; base da norma <strong>ISO/IEC 39075:2024</strong>.</li>
+            <li><strong>ACID &amp; Esquema Opcional:</strong> transações ACID completas com restrições opcionais (4 <code>UNIQUE</code> no nosso seed).</li>
+            <li><strong>Cluster &amp; Teorema CAP:</strong> consenso <strong>Raft</strong> para escrita no líder e réplicas de leitura → classificado como <strong>CP</strong> (Consistência + Partição).</li>
+          </ul>
+        </div>
+        <div class="card" style="display:flex; flex-direction:column; justify-content:center;">
+          <h3 style="text-align:center;"><em>Index-Free Adjacency</em> vs. JOIN Relacional</h3>
+          <svg viewBox="0 0 460 270" width="100%" style="background:#fff; border-radius:8px; border:1px solid #e2e8f0;">
+            <!-- Lado Grafo -->
+            <text x="115" y="22" text-anchor="middle" font-size="13" font-weight="bold" fill="#0044a8">Neo4j (Ponteiros Diretos O(1))</text>
+            <circle cx="55" cy="85" r="28" fill="#0f766e" />
+            <text x="55" y="89" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Ana (u01)</text>
+            <circle cx="185" cy="85" r="28" fill="#1d4ed8" />
+            <text x="185" y="89" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">Matrix</text>
+            <line x1="83" y1="85" x2="152" y2="85" stroke="#0f172a" stroke-width="2.5" marker-end="url(#arrow)" />
+            <rect x="92" y="54" width="60" height="18" rx="4" fill="#e2e8f0" />
+            <text x="122" y="67" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#0f172a">nota: 5</text>
+            <text x="115" y="135" text-anchor="middle" font-size="10.5" fill="#334155">Nó guarda ponteiro direto do vizinho</text>
+            <text x="115" y="150" text-anchor="middle" font-size="10.5" fill="#15803d" font-weight="bold">Custo independe do tamanho total</text>
+            <!-- Divisor -->
+            <line x1="238" y1="15" x2="238" y2="255" stroke="#cbd5e1" stroke-dasharray="4,4" />
+            <!-- Lado Relacional -->
+            <text x="350" y="22" text-anchor="middle" font-size="13" font-weight="bold" fill="#b91c1c">SQL (Busca em Índice / JOIN)</text>
+            <rect x="255" y="42" width="185" height="46" rx="4" fill="#fef2f2" stroke="#fca5a5" />
+            <text x="347" y="60" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#991b1b">Tabela USUARIO (Índice PK)</text>
+            <text x="347" y="76" text-anchor="middle" font-size="10" fill="#475569">u01 | Ana | Padrão</text>
+            <rect x="255" y="112" width="185" height="46" rx="4" fill="#fff7ed" stroke="#fdba74" />
+            <text x="347" y="130" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#9a3412">Tabela ASSISTIU (JOIN O(log N))</text>
+            <text x="347" y="146" text-anchor="middle" font-size="10" fill="#475569">FK u01 → FK f01 | nota: 5</text>
+            <rect x="255" y="182" width="185" height="46" rx="4" fill="#fef2f2" stroke="#fca5a5" />
+            <text x="347" y="200" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#991b1b">Tabela FILME (Índice PK)</text>
+            <text x="347" y="216" text-anchor="middle" font-size="10" fill="#475569">f01 | Matrix | 1999</text>
+            <line x1="347" y1="88" x2="347" y2="112" stroke="#b91c1c" stroke-width="2" />
+            <line x1="347" y1="158" x2="347" y2="182" stroke="#b91c1c" stroke-width="2" />
+            <text x="350" y="248" text-anchor="middle" font-size="10.5" fill="#b91c1c" font-weight="bold">Cada salto = nova varredura de índice</text>
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f172a" />
+              </marker>
+            </defs>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Base: Neo4j Operations Manual, Graph Databases (Cap. 6) &amp; Aula 11 (CP no Teorema CAP)</span><span>Slide 6 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 7: HARDWARE E EDICOES -->
+  <section class="slide" data-title="Neo4j: hardware e edições" data-notes="1 min. Responder ao requisito 'Que hardware necessita?': JVM (Java 17/21), divisão crítica da RAM (JVM Heap + Page Cache off-heap + SO), disco SSD/NVMe por I/O aleatório de ponteiros, e as 3 edições (Community, Enterprise, AuraDB Free com pausa em 72h).">
+    <div class="slide-header">
+      <h2>Neo4j: Requisitos de Hardware, Edições e Ferramentas</h2>
+      <span class="badge barema">Tópico 2</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card accent">
+          <h3>Hardware &amp; Arquitetura de Memória (Operations Manual)</h3>
+          <ul class="clean">
+            <li><strong>Runtime JVM:</strong> Java 17 (Neo4j 5.x) ou Java 21 (versões recentes 2025.x).</li>
+            <li><strong>RAM — Heap da JVM:</strong> executa consultas e transações (<code>server.memory.heap.max_size</code>; manter <em>initial = max</em> e abaixo de ~32 GB).</li>
+            <li><strong>RAM — Page Cache (off-heap):</strong> mantém nós e arestas em memória (<code>server.memory.pagecache.size</code>). Ideal: cobrir o tamanho do grafo em disco.</li>
+            <li><strong>Dimensionamento:</strong> <code>neo4j-admin server memory-recommendation</code> + folga de 1–2 GB para o SO (sem <em>swap</em>).</li>
+            <li><strong>Disco:</strong> <strong>SSD / NVMe</strong> obrigatório em produção (seguir ponteiros fora do cache gera leitura aleatória).</li>
+            <li><strong>Porte:</strong> estudo/demo roda bem com <strong>8 GB de RAM</strong>; produção usa dezenas de GB.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Edições e Ecossistema</h3>
+          <table class="data" style="margin-bottom:10px;">
+            <thead><tr><th>Edição</th><th>Modelo</th><th>Uso Principal</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Community</strong></td><td>Gratuita (GPLv3)</td><td>1 servidor; ideal para estudos e apps menores</td></tr>
+              <tr><td><strong>Enterprise</strong></td><td>Comercial</td><td>Cluster Raft, backup a quente, RBAC avançado</td></tr>
+              <tr><td><strong>AuraDB Free</strong></td><td>Nuvem (DBaaS)</td><td>Gratuita; pausa após <strong>72 h</strong> sem escrita</td></tr>
+            </tbody>
+          </table>
+          <ul class="clean">
+            <li><strong>Ferramentas:</strong> Neo4j Browser, Neo4j Bloom, <strong>Graph Data Science (GDS)</strong> (PageRank, similaridade) e biblioteca <strong>APOC</strong>.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Fonte: Neo4j Operations Manual (System Requirements) &amp; AuraDB Docs</span><span>Slide 7 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 8: QUEM USA NO MERCADO -->
+  <section class="slide" data-title="Quem usa no mercado" data-notes="1 min. Tópico 3 obrigatório do enunciado. Apresentar os 6 casos confirmados em neo4j.com/customers. Reforçar que NÃO afirmamos que Netflix ou Spotify usam Neo4j.">
+    <div class="slide-header">
+      <h2>3. Aplicações Reais no Mercado (Casos Oficiais Neo4j)</h2>
+      <span class="badge">Tópico 3 · Obrigatório</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-3">
+        <div class="card accent"><h3>Walmart</h3><p style="font-size:14px;"><strong>Recomendação em tempo real:</strong> conectou clientes e produtos no e-commerce para sugerir itens no ato da compra, substituindo processos batch relacionais lentos.</p></div>
+        <div class="card accent"><h3>eBay</h3><p style="font-size:14px;"><strong>Comércio conversacional e logística:</strong> grafo de conhecimento no assistente de compras (ShopBot) e otimização de rotas de entrega.</p></div>
+        <div class="card accent"><h3>NASA</h3><p style="font-size:14px;"><strong>Base <em>Lessons Learned</em>:</strong> grafo de conhecimento integrando décadas de relatórios técnicos e competências para acelerar missões (ex.: planejamento a Marte).</p></div>
+        <div class="card"><h3>ICIJ (Panama Papers)</h3><p style="font-size:14px;"><strong>Jornalismo investigativo:</strong> conectou terabytes de documentos ligando empresas offshore, políticos e intermediários financeiros em horas.</p></div>
+        <div class="card"><h3>Lyft (Amundsen)</h3><p style="font-size:14px;"><strong>Descoberta e linhagem de dados:</strong> plataforma open-source usando Neo4j e PageRank para mapear quem usa quais tabelas e datasets.</p></div>
+        <div class="card"><h3>Adobe (Behance)</h3><p style="font-size:14px;"><strong>Feed social em escala:</strong> gerencia conexões e feed de atividades para +18 milhões de criativos com menor custo de infraestrutura.</p></div>
+      </div>
+      <div class="callout">
+        <strong>Nota metodológica:</strong> Netflix e Spotify são usados como referência do <em>tipo de sistema</em> pedido no enunciado (item 6b). Os casos reais confirmados de uso do Neo4j em produção são os listados acima (ex.: <strong>Walmart</strong> para recomendação).
+      </div>
+    </div>
+    <div class="slide-footer"><span>Fonte: Neo4j Customer Case Studies (neo4j.com/customers)</span><span>Slide 8 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 9: VANTAGENS -->
+  <section class="slide" data-title="Vantagens do Neo4j" data-notes="1,5 min. Conectar cada vantagem com algo visível na demo ao vivo: U2 mostra esquema flexível sem ALTER TABLE; D1a/C1 mostram ACID e integridade.">
+    <div class="slide-header">
+      <h2>4. Principais Vantagens (Motivos para Usar)</h2>
+      <span class="badge barema">Tópico 4 · 1,0 pt</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card green">
+          <h3>1. Travessia Rápida e Estável</h3>
+          <p style="font-size:14px;"><em>Index-free adjacency</em> mantém latência previsível mesmo em 3, 4 ou 5+ saltos, sem degradação por tamanho total do banco.</p>
+        </div>
+        <div class="card green">
+          <h3>2. Modelagem Natural (Whiteboard-Friendly)</h3>
+          <p style="font-size:14px;">O desenho conceitual do domínio vai direto para o banco, sem tabelas intermediárias artificiais de junção N:N.</p>
+        </div>
+        <div class="card green">
+          <h3>3. Esquema Flexível (Schema-Optional)</h3>
+          <p style="font-size:14px;">Novos rótulos, relações ou propriedades entram <em>on the fly</em> sem <code>ALTER TABLE</code> nem migração bloqueante (<strong>veremos em U2</strong>).</p>
+        </div>
+        <div class="card green">
+          <h3>4. Linguagem Cypher Expressiva</h3>
+          <p style="font-size:14px;">Padrões visuais em ASCII substituem cadeias complexas de múltiplos <code>JOIN</code>s SQL, reduzindo código e erros.</p>
+        </div>
+        <div class="card green">
+          <h3>5. Transações ACID &amp; Integridade</h3>
+          <p style="font-size:14px;">Garante atomicidade e impede relacionamentos órfãos ou duplicações via restrições <code>UNIQUE</code> (<strong>veremos em C1 e D1a</strong>).</p>
+        </div>
+        <div class="card green">
+          <h3>6. Ecossistema Completo</h3>
+          <p style="font-size:14px;">Neo4j Browser visual, Bloom, Graph Data Science (GDS), drivers oficiais (Python, Java, JS, Go, .NET) e nuvem AuraDB Free.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Base: Pesquisa Teórica + Comprovação Prática na Demo ao Vivo</span><span>Slide 9 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 10: DESVANTAGENS -->
+  <section class="slide" data-title="Desvantagens do Neo4j" data-notes="1,5 min. Dar atenção especial ao item 1 (nuance com o Slide 30 da Aula 11): explicar respeitosamente que leitura escala horizontalmente em réplicas, mas escrita centraliza no líder Raft e sharding automático é difícil em grafos.">
+    <div class="slide-header">
+      <h2>5. Principais Desvantagens (Motivos para Evitar)</h2>
+      <span class="badge barema">Tópico 5 · 1,0 pt</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card red">
+          <h3>1. Escrita e Sharding Horizontal Difíceis</h3>
+          <p style="font-size:14px;"><strong>Nuance com a Aula 11:</strong> leituras escalam em réplicas, mas escritas passam pelo líder Raft. Particionar (<em>sharding</em>) um grafo altamente conectado entre máquinas quebra travessias rápidas.</p>
+        </div>
+        <div class="card red">
+          <h3>2. Ineficiente para Dados Tabulares / OLAP em Massa</h3>
+          <p style="font-size:14px;">Agregações globais em milhões de linhas (ex.: faturamento anual) são mais rápidas em bancos relacionais ou colunares (Aula 11, Slide 31).</p>
+        </div>
+        <div class="card red">
+          <h3>3. Problema dos Supernós (Supernodes)</h3>
+          <p style="font-size:14px;">Um nó com milhões de arestas (ex.: gênero "Drama") cria gargalo na travessia da vizinhança e exige modelagem defensiva.</p>
+        </div>
+        <div class="card red">
+          <h3>4. Alta Exigência de RAM</h3>
+          <p style="font-size:14px;">Desempenho ótimo exige que o <em>page cache</em> mantenha o grafo ativo em memória RAM; servidores grandes encarecem.</p>
+        </div>
+        <div class="card red">
+          <h3>5. Recursos Corporativos Apenas na Enterprise</h3>
+          <p style="font-size:14px;">Cluster causal, backup a quente e segurança RBAC avançada exigem licença Enterprise (ou AuraDB gerenciada).</p>
+        </div>
+        <div class="card red">
+          <h3>6. Curva de Aprendizado &amp; Arquivos Grandes</h3>
+          <p style="font-size:14px;">Exige mudança de mentalidade (pensar em grafos + Cypher) e não serve para armazenar vídeos, imagens ou logs brutos de alta vazão.</p>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Base: Aula 11 (Slides 30–31) &amp; Neo4j Architecture Limitations</span><span>Slide 10 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 11: RECOMENDACAO = PERCORRER RELACOES -->
+  <section class="slide" data-title="Recomendação = percorrer relações" data-notes="2 min. Abrir o Tópico 6 citando a Aula 11 (Slide 31 já aponta 'recomendação' como uso ideal). Comparar a R1 em Cypher com a consulta SQL equivalente (3 self-JOINs na tabela assistiu).">
+    <div class="slide-header">
+      <h2>6. Sistema de Recomendação = Percorrer Relações</h2>
+      <span class="badge barema">Tópico 6 · 1,0 pt</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-3">
+        <div class="card accent"><h3>Filtragem Colaborativa (R1)</h3><p style="font-size:13.5px;">3 saltos: <code>Ana → Matrix ← Bruno → Interestelar</code>. "Quem gostou do que você gostou também gostou de..."</p></div>
+        <div class="card accent"><h3>Baseada em Conteúdo (R3)</h3><p style="font-size:13.5px;">Atributos em comum: <code>Ana → A Origem ← DiCaprio → Titanic</code> (mesmo ator ou gênero).</p></div>
+        <div class="card accent"><h3>Híbrida &amp; Cold Start (R4)</h3><p style="font-size:13.5px;">Combina sinais + algoritmos da GDS (similaridade/PageRank) e usa popularidade para usuário novo.</p></div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <h3 style="font-size:14px; color:var(--unifor); margin-bottom:6px;">Consulta R1 em Cypher (Legível e Declarativa)</h3>
+          <pre class="code"><span class="kw">MATCH</span> (alvo:<span class="lbl">Usuario</span> {usuarioId:<span class="str">'u01'</span>})-[r1:<span class="lbl">ASSISTIU</span>]-&gt;(f:<span class="lbl">Filme</span>)&lt;-[r2:<span class="lbl">ASSISTIU</span>]-(outro:<span class="lbl">Usuario</span>)
+<span class="kw">WHERE</span> r1.nota &gt;= 4 <span class="kw">AND</span> r2.nota &gt;= 4
+<span class="kw">WITH</span> alvo, outro, count(f) <span class="kw">AS</span> emComum
+<span class="kw">MATCH</span> (outro)-[r3:<span class="lbl">ASSISTIU</span>]-&gt;(rec:<span class="lbl">Filme</span>)
+<span class="kw">WHERE</span> r3.nota &gt;= 4 <span class="kw">AND NOT EXISTS</span> { (alvo)-[:<span class="lbl">ASSISTIU</span>]-&gt;(rec) }
+<span class="kw">RETURN</span> rec.titulo <span class="kw">AS</span> recomendacao,
+       count(<span class="kw">DISTINCT</span> outro) <span class="kw">AS</span> usuariosParecidos,
+       sum(emComum) <span class="kw">AS</span> forca, round(avg(r3.nota), 1) <span class="kw">AS</span> notaMedia
+<span class="kw">ORDER BY</span> forca <span class="kw">DESC</span>, notaMedia <span class="kw">DESC</span>, recomendacao <span class="kw">LIMIT</span> 5;</pre>
+        </div>
+        <div>
+          <h3 style="font-size:14px; color:var(--danger); margin-bottom:6px;">Equivalente em SQL (3 JOINs na mesma tabela)</h3>
+          <pre class="code"><span class="kw">SELECT</span> f.titulo, COUNT(<span class="kw">DISTINCT</span> a2.usuario_id) <span class="kw">AS</span> usuarios_parecidos
+<span class="kw">FROM</span> assistiu a1
+<span class="kw">JOIN</span> assistiu a2 <span class="kw">ON</span> a2.filme_id = a1.filme_id
+                <span class="kw">AND</span> a2.usuario_id &lt;&gt; a1.usuario_id
+<span class="kw">JOIN</span> assistiu a3 <span class="kw">ON</span> a3.usuario_id = a2.usuario_id
+<span class="kw">JOIN</span> filme f     <span class="kw">ON</span> f.filme_id = a3.filme_id
+<span class="kw">WHERE</span> a1.usuario_id = <span class="str">'u01'</span>
+  <span class="kw">AND</span> a1.nota &gt;= 4 <span class="kw">AND</span> a2.nota &gt;= 4 <span class="kw">AND</span> a3.nota &gt;= 4
+  <span class="kw">AND</span> a3.filme_id <span class="kw">NOT IN</span> (<span class="kw">SELECT</span> filme_id <span class="kw">FROM</span> assistiu <span class="kw">WHERE</span> usuario_id = <span class="str">'u01'</span>)
+<span class="kw">GROUP BY</span> f.titulo <span class="kw">ORDER BY</span> usuarios_parecidos <span class="kw">DESC</span>;</pre>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Mensagem: cada salto extra no recomendador vira mais um JOIN no SQL; no grafo é um padrão contínuo.</span><span>Slide 11 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 12: NEO4J NA RECOMENDACAO PROS E CONTRAS -->
+  <section class="slide" data-title="Neo4j na recomendação: prós e contras" data-notes="2 min. Explicar em detalhes como o Neo4j se adequa ao sistema de recomendação (barema exige essa explicação detalhada). Mostrar arquitetura poliglota: logs brutos ficam fora, relações consolidadas ficam no grafo.">
+    <div class="slide-header">
+      <h2>Neo4j na Recomendação: Adequação, Prós e Contras</h2>
+      <span class="badge barema">Tópico 6</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card green">
+          <h3>Vantagens no Contexto de Recomendação</h3>
+          <ul class="clean">
+            <li><strong>Tempo real por vizinhança:</strong> toca apenas os vizinhos do usuário ativo, recalculando a cada clique sem job noturno.</li>
+            <li><strong>Explicabilidade nativa (R2):</strong> o caminho percorrido gera a justificativa ("porque você e Bruno gostaram de Matrix").</li>
+            <li><strong>Novidade entra na hora (C1 → R1):</strong> filme recém-lançado e avaliado aparece imediatamente no ranking.</li>
+            <li><strong>Novos sinais sem migração:</strong> seguir amigo, curtir diretor ou salvar em lista entram como novas arestas.</li>
+            <li><strong>Caso real confirmado:</strong> Walmart recomenda produtos em tempo real com Neo4j.</li>
+          </ul>
+        </div>
+        <div class="card red">
+          <h3>Desvantagens e Limites no Contexto</h3>
+          <ul class="clean">
+            <li><strong>Volume bruto de eventos:</strong> bilhões de eventos de <em>play/pause</em> pesam no grafo; logs brutos devem ir para Kafka/Cassandra e apenas a relação consolidada entra no Neo4j.</li>
+            <li><strong>Supernós populares:</strong> sucessos globais ou gêneros amplos ("Drama") conectam quase todo o catálogo e exigem limites/filtros.</li>
+            <li><strong>Partida a frio (<em>Cold Start</em>):</strong> usuário sem histórico exige fallback para popularidade (<strong>consulta R4</strong>).</li>
+            <li><strong>Machine Learning pesado:</strong> fatoração de matrizes e redes neurais rodam fora do SGBD; o grafo fornece <em>features</em> e executa a filtragem em tempo real.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        <strong>Por que o Neo4j se adequa perfeitamente:</strong> Os dados de recomendação formam naturalmente uma rede de usuários, filmes, gêneros e atores. O Neo4j armazena essa rede no formato exato das consultas e responde <em>"o que recomendar e por quê"</em> em poucos saltos, em milissegundos, dentro de uma <strong>arquitetura poliglota</strong> (grafo para relações + relacional/documento para cobrança e catálogo de mídia).
+      </div>
+    </div>
+    <div class="slide-footer"><span>Base: pesquisa/04-recomendacao-com-grafo.md</span><span>Slide 12 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 13: NOSSO MODELO -->
+  <section class="slide" data-title="Nosso modelo" data-notes="1 min. Apresentar o diagrama do modelo de dados (também exportado para Arrows.app em apresentacao/modelo-arrows.json), os volumes exatos (39 nós, 67 relacionamentos, 4 restrições UNIQUE) e explicar por que nota está na aresta ASSISTIU.">
+    <div class="slide-header">
+      <h2>Aplicação Prática: Nosso Modelo de Grafo</h2>
+      <span class="badge barema">Aplicação Prática · 5,0 pts</span>
+    </div>
+    <div class="slide-body">
+      <div class="grid-2" style="align-items:center;">
+        <div class="card" style="text-align:center;">
+          <h3>Diagrama do Grafo de Propriedades (Arrows.app)</h3>
+          <svg viewBox="0 0 520 265" width="100%" style="background:#fff; border-radius:8px; border:1px solid #e2e8f0;">
+            <!-- Usuario -->
+            <circle cx="85" cy="85" r="40" fill="#0f766e" />
+            <text x="85" y="81" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">:Usuario</text>
+            <text x="85" y="96" text-anchor="middle" font-size="9.5" fill="#ccfbf1">usuarioId, nome, plano</text>
+            <!-- Filme -->
+            <circle cx="260" cy="85" r="42" fill="#1d4ed8" />
+            <text x="260" y="81" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">:Filme</text>
+            <text x="260" y="96" text-anchor="middle" font-size="9.5" fill="#dbeafe">filmeId, titulo, ano, min</text>
+            <!-- Genero -->
+            <circle cx="435" cy="85" r="38" fill="#b45309" />
+            <text x="435" y="81" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">:Genero</text>
+            <text x="435" y="96" text-anchor="middle" font-size="9.5" fill="#fef3c7">nome</text>
+            <!-- Ator -->
+            <circle cx="260" cy="215" r="38" fill="#6d28d9" />
+            <text x="260" y="211" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">:Ator</text>
+            <text x="260" y="226" text-anchor="middle" font-size="9.5" fill="#ede9fe">nome</text>
+            <!-- Edges -->
+            <line x1="125" y1="85" x2="213" y2="85" stroke="#0f172a" stroke-width="2.5" marker-end="url(#arrow2)" />
+            <rect x="132" y="54" width="76" height="22" rx="4" fill="#e2e8f0" />
+            <text x="170" y="68" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#0f172a">ASSISTIU {nota}</text>
+
+            <line x1="302" y1="85" x2="392" y2="85" stroke="#0f172a" stroke-width="2.5" marker-end="url(#arrow2)" />
+            <rect x="313" y="58" width="68" height="18" rx="4" fill="#e2e8f0" />
+            <text x="347" y="70" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#0f172a">DO_GENERO</text>
+
+            <line x1="260" y1="177" x2="260" y2="132" stroke="#0f172a" stroke-width="2.5" marker-end="url(#arrow2)" />
+            <rect x="270" y="144" width="68" height="18" rx="4" fill="#e2e8f0" />
+            <text x="304" y="156" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#0f172a">ATUOU_EM</text>
+            <defs>
+              <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 1 L 10 5 L 0 9 z" fill="#0f172a" />
+              </marker>
+            </defs>
+          </svg>
+        </div>
+        <div class="card accent">
+          <h3>Decisões de Modelagem &amp; Volume do Seed</h3>
+          <ul class="clean">
+            <li><strong>39 Nós:</strong> 8 <code>:Usuario</code> · 12 <code>:Filme</code> · 7 <code>:Genero</code> · 12 <code>:Ator</code>.</li>
+            <li><strong>67 Relacionamentos:</strong> 26 <code>:ASSISTIU</code> · 22 <code>:DO_GENERO</code> · 19 <code>:ATUOU_EM</code>.</li>
+            <li><strong>4 Restrições UNIQUE:</strong> <code>usuario_id</code>, <code>filme_id</code>, <code>genero_nome</code>, <code>ator_nome</code>.</li>
+            <li><strong>Propriedade na aresta:</strong> <code>nota</code> (1 a 5) fica dentro de <code>[:ASSISTIU]</code> — pertence ao par usuário + filme.</li>
+            <li><strong>Gênero e Ator como nós:</strong> transformam atributos em pontes para recomendação por conteúdo (<code>R3</code>).</li>
+            <li><strong>Extensões futuras sem migração:</strong> diretores, séries ou amizade entre usuários entram sem alterar nós existentes.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Arquivo importável do diagrama: apresentacao/modelo-arrows.json</span><span>Slide 13 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 14: DEMO INTERATIVA / SIMULADOR NEO4J BROWSER -->
+  <section class="slide" data-title="Demo ao vivo (Simulador Neo4j)" data-notes="6 min. Roteiro exato da demo ao vivo (12 passos). Use no Neo4j Browser real conectado ao seed ou execute aqui mesmo no simulador interativo para ensaio / contingência.">
+    <div class="slide-header">
+      <h2>Demo ao Vivo · Simulador Interativo (Neo4j Browser)</h2>
+      <span class="badge barema">CRUD · 5,0 pts</span>
+    </div>
+    <div class="slide-body" style="gap:8px;">
+      <div class="sim-layout">
+        <div class="sim-sidebar">
+          <div style="display:flex; gap:6px; margin-bottom:4px;">
+            <button class="btn warn" style="flex:1;" onclick="simReset()">↺ Reset / Seed</button>
+            <button class="btn success" style="flex:1;" onclick="simStep('CONFERENCIA')">✓ Conferir</button>
+          </div>
+          <button class="step-btn" onclick="simStep('R0', this)"><span>1. <strong>R0</strong> · Grafo inteiro (39 nós)</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('R1', this)"><span>2. <strong>R1</strong> · Recomendar para Ana</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('R2', this)"><span>3. <strong>R2</strong> · Explicar caminhos</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('C1', this)"><span>4. <strong>C1</strong> · Lançar Duna (f13)</span><span>C</span></button>
+          <button class="step-btn" onclick="simStep('R1', this)"><span>5. <strong>R1</strong> · Duna vai para 1º</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('U1', this)"><span>6. <strong>U1</strong> · Diego muda nota p/ 2</span><span>U</span></button>
+          <button class="step-btn" onclick="simStep('R1', this)"><span>7. <strong>R1</strong> · Lobo de WS sumiu</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('U2', this)"><span>8. <strong>U2</strong> · Ana Premium (+campo)</span><span>U</span></button>
+          <button class="step-btn" onclick="simStep('D1a', this)"><span>9. <strong>D1a</strong> · DELETE ingênuo</span><span>D</span></button>
+          <button class="step-btn" onclick="simStep('D1b', this)"><span>10. <strong>D1b</strong> · DETACH DELETE</span><span>D</span></button>
+          <button class="step-btn" onclick="simStep('R1', this)"><span>11. <strong>R1</strong> · Só Interestelar</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('R3', this)"><span>12. <strong>R3</strong> · Por conteúdo (extra)</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('R4', this)"><span>Extra. <strong>R4</strong> · Cold Start</span><span>R</span></button>
+          <button class="step-btn" onclick="simStep('C1_DUP', this)"><span>Extra. <strong>C1</strong> 2x (Teste UNIQUE)</span><span>ACID</span></button>
+        </div>
+        <div class="sim-main">
+          <div class="sim-canvas-wrap">
+            <div class="sim-legend">
+              <span><i class="dot" style="background:#14b8a6;"></i>Usuario</span>
+              <span><i class="dot" style="background:#3b82f6;"></i>Filme</span>
+              <span><i class="dot" style="background:#f59e0b;"></i>Genero</span>
+              <span><i class="dot" style="background:#a855f7;"></i>Ator</span>
+              <span id="simCountBadge" style="margin-left:8px; color:#93c5fd; font-weight:700;">39 nós · 67 rels</span>
+            </div>
+            <svg id="graphSvg" viewBox="0 0 820 330"></svg>
+          </div>
+          <div class="sim-output" id="simOutput">
+            Clique em <strong>1. R0</strong> ou execute na ordem (1 → 12) para ver o grafo, as consultas Cypher e os resultados em tempo real.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Regra da demo: no Neo4j Browser real, rodar sempre pelos favoritos salvos (nunca digitar ao vivo).</span><span>Slide 14 / 15</span></div>
+  </section>
+
+  <!-- SLIDE 15: CONCLUSAO E REFERENCIAS -->
+  <section class="slide" data-title="Conclusão e referências" data-notes="0,5 min. Fechar com a frase síntese do roteiro e mostrar que todas as afirmações têm fontes verificadas.">
+    <div class="slide-header">
+      <h2>Conclusão e Referências</h2>
+      <span class="badge">Encerramento</span>
+    </div>
+    <div class="slide-body">
+      <div class="callout" style="font-size:18px; padding:18px 22px; background:#eff6ff; border-left:6px solid var(--unifor);">
+        <strong>"Grafo não substitui o relacional. É a escolha certa quando o valor está nas relações — e recomendação é exatamente isso."</strong>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Checklist da Apresentação Atendido</h3>
+          <ul class="clean">
+            <li>Paradigma de grafo e comparação com SQL (benchmark + JOINs).</li>
+            <li>História, operação interna (<em>index-free adjacency</em>, ACID, CP), hardware (JVM, Heap, Page Cache, SSD).</li>
+            <li>6 casos reais de mercado (Walmart, eBay, NASA, ICIJ, Lyft, Adobe).</li>
+            <li>Vantagens, desvantagens e adequação à recomendação.</li>
+            <li>CRUD completo ao vivo (C1, R0–R4, U1, U2, D1a, D1b).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Referências Principais</h3>
+          <ul class="clean" style="font-size:13px;">
+            <li>Material da Disciplina: Aula 11 · NoSQL (Profa. Ana Maria Quevedo / Prof. Alan Carlos) &amp; Enunciado Projeto 3 (26.2).</li>
+            <li>ROBINSON, I.; WEBBER, J.; EIFREM, E. <em>Graph Databases</em>. 2. ed. O'Reilly, 2015.</li>
+            <li>VUKOTIC, A. et al. <em>Neo4j in Action</em>. Manning, 2014 (Cap. 1).</li>
+            <li>Neo4j Docs (Operations Manual, Cypher Manual, AuraDB Pause/Resume) &amp; Customer Case Studies (<code>neo4j.com/customers</code>).</li>
+            <li>ISO/IEC 39075:2024 — Graph Query Language (GQL) &amp; DB-Engines Ranking.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="slide-footer"><span>Obrigado! · Aberto para perguntas da professora e da turma.</span><span>Slide 15 / 15</span></div>
+  </section>
+
+</main>
+
+<aside id="notesDrawer" class="notes-drawer">
+  <strong style="color:#93c5fd;">Notas do Apresentador:</strong> <span id="notesText"></span>
+</aside>
+
+<div id="gridOverview" class="grid-overview"></div>
+
+<script>
+// ================= NAVEGACAO E CRONOMETRO =================
+const slides = Array.from(document.querySelectorAll('.slide'));
+let currentIdx = 0;
+
+function showSlide(idx) {
+  currentIdx = Math.max(0, Math.min(slides.length - 1, idx));
+  slides.forEach((s, i) => s.classList.toggle('active', i === currentIdx));
+  document.getElementById('slideCounter').textContent = `${currentIdx + 1} / ${slides.length}`;
+  document.getElementById('notesText').textContent = slides[currentIdx].dataset.notes || '';
+}
+function nextSlide() { showSlide(currentIdx + 1); }
+function prevSlide() { showSlide(currentIdx - 1); }
+function toggleNotes() { document.getElementById('notesDrawer').classList.toggle('open'); }
+function toggleGrid() {
+  const g = document.getElementById('gridOverview');
+  if (!g.innerHTML) {
+    slides.forEach((s, i) => {
+      const d = document.createElement('div');
+      d.className = 'thumb';
+      d.innerHTML = `<div style="color:#93c5fd;font-weight:700;">Slide ${i + 1}</div><div style="margin-top:4px;">${s.dataset.title}</div>`;
+      d.onclick = () => { showSlide(i); toggleGrid(); };
+      g.appendChild(d);
+    });
+  }
+  g.classList.toggle('open');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') nextSlide();
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') prevSlide();
+  else if (e.key.toLowerCase() === 'n') toggleNotes();
+  else if (e.key.toLowerCase() === 'g') toggleGrid();
+});
+
+let timerSec = 0, timerHandle = null;
+function toggleTimer() {
+  if (timerHandle) { clearInterval(timerHandle); timerHandle = null; return; }
+  timerHandle = setInterval(() => {
+    timerSec++;
+    const m = String(Math.floor(timerSec / 60)).padStart(2, '0');
+    const s = String(timerSec % 60).padStart(2, '0');
+    document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+// ================= SIMULADOR NEO4J BROWSER (SLIDE 14) =================
+const SEED_FILMES = [
+  {id:'f01', titulo:'Matrix', ano:1999, duracao:136, generos:['Ficção Científica','Ação'], atores:['Keanu Reeves','Carrie-Anne Moss']},
+  {id:'f02', titulo:'John Wick', ano:2014, duracao:101, generos:['Ação'], atores:['Keanu Reeves']},
+  {id:'f03', titulo:'Interestelar', ano:2014, duracao:169, generos:['Ficção Científica','Drama'], atores:['Matthew McConaughey','Anne Hathaway']},
+  {id:'f04', titulo:'A Origem', ano:2010, duracao:148, generos:['Ficção Científica','Ação'], atores:['Leonardo DiCaprio']},
+  {id:'f05', titulo:'O Lobo de Wall Street', ano:2013, duracao:180, generos:['Comédia','Drama'], atores:['Leonardo DiCaprio','Margot Robbie']},
+  {id:'f06', titulo:'Titanic', ano:1997, duracao:195, generos:['Romance','Drama'], atores:['Leonardo DiCaprio','Kate Winslet']},
+  {id:'f07', titulo:'Diário de uma Paixão', ano:2004, duracao:123, generos:['Romance','Drama'], atores:['Ryan Gosling','Rachel McAdams']},
+  {id:'f08', titulo:'La La Land', ano:2016, duracao:128, generos:['Romance','Musical'], atores:['Ryan Gosling','Emma Stone']},
+  {id:'f09', titulo:'Barbie', ano:2023, duracao:114, generos:['Comédia'], atores:['Margot Robbie','Ryan Gosling']},
+  {id:'f10', titulo:'Toy Story', ano:1995, duracao:81, generos:['Animação','Comédia'], atores:['Tom Hanks']},
+  {id:'f11', titulo:'Forrest Gump', ano:1994, duracao:142, generos:['Drama','Romance'], atores:['Tom Hanks']},
+  {id:'f12', titulo:'Divertida Mente', ano:2015, duracao:95, generos:['Animação','Comédia'], atores:['Amy Poehler']}
+];
+const SEED_USERS = [
+  {id:'u01', nome:'Ana', plano:'Padrão'}, {id:'u02', nome:'Bruno', plano:'Padrão'},
+  {id:'u03', nome:'Carla', plano:'Básico'}, {id:'u04', nome:'Diego', plano:'Premium'},
+  {id:'u05', nome:'Elisa', plano:'Padrão'}, {id:'u06', nome:'Felipe', plano:'Básico'},
+  {id:'u07', nome:'Gabi', plano:'Premium'}, {id:'u08', nome:'Hugo', plano:'Padrão'}
+];
+const SEED_ASSISTIU = [
+  ['u01','f01',5],['u01','f02',4],['u01','f04',5],
+  ['u02','f01',5],['u02','f04',4],['u02','f03',5],['u02','f02',3],
+  ['u03','f06',5],['u03','f07',5],['u03','f08',4],
+  ['u04','f01',4],['u04','f03',4],['u04','f05',4],
+  ['u05','f07',4],['u05','f08',5],['u05','f09',4],
+  ['u06','f10',5],['u06','f12',5],['u06','f09',3],
+  ['u07','f06',4],['u07','f11',5],['u07','f07',5],
+  ['u08','f10',4],['u08','f11',4],['u08','f12',4],['u08','f01',3]
+];
+
+let DB = { nodes: [], rels: [], highlightNodes: new Set(), highlightRels: new Set() };
+
+function cypherRound1(val) {
+  return Math.round((val + 1e-9) * 10) / 10;
+}
+
+function simReset() {
+  DB.nodes = [];
+  DB.rels = [];
+  DB.highlightNodes = new Set();
+  DB.highlightRels = new Set();
+  const findOrAdd = (label, key, value, extra = {}) => {
+    let n = DB.nodes.find(x => x.label === label && x[key] === value);
+    if (!n) {
+      n = { uid: `${label}:${value}`, label, [key]: value, ...extra };
+      DB.nodes.push(n);
+    }
+    return n;
+  };
+  SEED_FILMES.forEach(f => {
+    const fn = findOrAdd('Filme', 'filmeId', f.id, { titulo: f.titulo, ano: f.ano, duracaoMin: f.duracao });
+    f.generos.forEach(g => {
+      const gn = findOrAdd('Genero', 'nome', g);
+      DB.rels.push({ type: 'DO_GENERO', from: fn.uid, to: gn.uid });
+    });
+    f.atores.forEach(a => {
+      const an = findOrAdd('Ator', 'nome', a);
+      DB.rels.push({ type: 'ATUOU_EM', from: an.uid, to: fn.uid });
+    });
+  });
+  SEED_USERS.forEach(u => findOrAdd('Usuario', 'usuarioId', u.id, { nome: u.nome, plano: u.plano }));
+  SEED_ASSISTIU.forEach(([u, f, nota]) => {
+    DB.rels.push({ type: 'ASSISTIU', from: `Usuario:${u}`, to: `Filme:${f}`, nota });
+  });
+  renderGraph();
+  document.getElementById('simOutput').innerHTML = `<strong style="color:#15803d;">Seed executado!</strong> Banco recriado com <strong>${DB.nodes.length} nós</strong>, <strong>${DB.rels.length} relacionamentos</strong> e <strong>4 restrições UNIQUE</strong>.`;
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+}
+
+function computeR1() {
+  const anaId = 'Usuario:u01';
+  const anaWatched = new Set(DB.rels.filter(r => r.type === 'ASSISTIU' && r.from === anaId).map(r => r.to));
+  const anaGood = new Set(DB.rels.filter(r => r.type === 'ASSISTIU' && r.from === anaId && r.nota >= 4).map(r => r.to));
+  const emComum = {};
+  DB.rels.filter(r => r.type === 'ASSISTIU' && r.nota >= 4 && anaGood.has(r.to)).forEach(r => {
+    emComum[r.from] = (emComum[r.from] || 0) + 1;
+  });
+  const recs = {};
+  Object.entries(emComum).forEach(([outroId, cnt]) => {
+    DB.rels.filter(r => r.type === 'ASSISTIU' && r.from === outroId && r.nota >= 4 && !anaWatched.has(r.to)).forEach(r => {
+      const fn = DB.nodes.find(n => n.uid === r.to);
+      if (!recs[r.to]) recs[r.to] = { recomendacao: fn.titulo, outros: new Set(), forca: 0, notas: [] };
+      recs[r.to].outros.add(outroId);
+      recs[r.to].forca += cnt;
+      recs[r.to].notas.push(r.nota);
+    });
+  });
+  return Object.values(recs).map(x => ({
+    recomendacao: x.recomendacao,
+    usuariosParecidos: x.outros.size,
+    forca: x.forca,
+    notaMedia: cypherRound1(x.notas.reduce((a, b) => a + b, 0) / x.notas.length).toFixed(1)
+  })).sort((a, b) => b.forca - a.forca || b.notaMedia - a.notaMedia || a.recomendacao.localeCompare(b.recomendacao)).slice(0, 5);
+}
+
+function renderTable(rows) {
+  if (!rows.length) return '<p><em>(sem resultados)</em></p>';
+  const cols = Object.keys(rows[0]);
+  return `<table class="data" style="font-size:12px;"><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${Array.isArray(r[c]) ? '[' + r[c].join(', ') + ']' : r[c]}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
+function simStep(step, btn) {
+  if (btn) {
+    document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  DB.highlightNodes = new Set();
+  DB.highlightRels = new Set();
+  const out = document.getElementById('simOutput');
+
+  if (step === 'CONFERENCIA') {
+    const nc = {}, rc = {};
+    DB.nodes.forEach(n => nc[n.label] = (nc[n.label] || 0) + 1);
+    DB.rels.forEach(r => rc[r.type] = (rc[r.type] || 0) + 1);
+    out.innerHTML = `<strong>Conferência do Banco:</strong><br/>Nós: ${JSON.stringify(nc)}<br/>Relacionamentos: ${JSON.stringify(rc)}<br/>Restrições: <code>usuario_id, filme_id, genero_nome, ator_nome</code>`;
+  } else if (step === 'R0') {
+    out.innerHTML = `<strong>[R0] MATCH (n) RETURN n;</strong> — Exibindo grafo completo: <strong>${DB.nodes.length} nós</strong> e <strong>${DB.rels.length} relacionamentos</strong>.`;
+  } else if (step === 'R1') {
+    const rows = computeR1();
+    DB.highlightNodes.add('Usuario:u01');
+    out.innerHTML = `<strong>[R1] Recomendação Colaborativa para Ana (u01):</strong>` + renderTable(rows);
+  } else if (step === 'R2') {
+    const paths = [
+      ['Usuario:u01','Filme:f01','Usuario:u02','Filme:f03'],
+      ['Usuario:u01','Filme:f04','Usuario:u02','Filme:f03'],
+      ['Usuario:u01','Filme:f01','Usuario:u04','Filme:f03']
+    ];
+    paths.forEach(p => {
+      p.forEach(id => DB.highlightNodes.add(id));
+      DB.highlightRels.add(`${p[0]}->${p[1]}`);
+      DB.highlightRels.add(`${p[2]}->${p[1]}`);
+      DB.highlightRels.add(`${p[2]}->${p[3]}`);
+    });
+    out.innerHTML = `<strong>[R2] 3 caminhos explicativos até Interestelar:</strong><br/>1) Ana → Matrix ← Bruno → Interestelar<br/>2) Ana → A Origem ← Bruno → Interestelar<br/>3) Ana → Matrix ← Diego → Interestelar`;
+  } else if (step === 'R3') {
+    const anaWatched = new Set(DB.rels.filter(r => r.type === 'ASSISTIU' && r.from === 'Usuario:u01').map(r => r.to));
+    const anaGood = new Set(DB.rels.filter(r => r.type === 'ASSISTIU' && r.from === 'Usuario:u01' && r.nota >= 4).map(r => r.to));
+    const attrsOf = (fuid) => DB.rels.filter(r => (r.type === 'DO_GENERO' && r.from === fuid) || (r.type === 'ATUOU_EM' && r.to === fuid)).map(r => r.type === 'DO_GENERO' ? r.to : r.from);
+    const filmsOf = (auid) => DB.rels.filter(r => (r.type === 'DO_GENERO' && r.to === auid) || (r.type === 'ATUOU_EM' && r.from === auid)).map(r => r.type === 'DO_GENERO' ? r.from : r.to);
+    const recs = {};
+    anaGood.forEach(fuid => attrsOf(fuid).forEach(auid => {
+      const an = DB.nodes.find(n => n.uid === auid);
+      filmsOf(auid).forEach(recUid => {
+        if (anaWatched.has(recUid)) return;
+        const rn = DB.nodes.find(n => n.uid === recUid);
+        if (!recs[recUid]) recs[recUid] = { recomendacao: rn.titulo, motivo: new Set(), pontos: 0 };
+        recs[recUid].motivo.add(an.nome);
+        recs[recUid].pontos += 1;
+      });
+    }));
+    const rows = Object.values(recs).map(x => ({ recomendacao: x.recomendacao, motivo: [...x.motivo], pontos: x.pontos }))
+      .sort((a, b) => b.pontos - a.pontos || a.recomendacao.localeCompare(b.recomendacao)).slice(0, 5);
+    out.innerHTML = `<strong>[R3] Recomendação por Conteúdo (Gênero/Ator):</strong>` + renderTable(rows);
+  } else if (step === 'R4') {
+    const stats = {};
+    DB.rels.filter(r => r.type === 'ASSISTIU').forEach(r => {
+      if (!stats[r.to]) stats[r.to] = { filme: DB.nodes.find(n => n.uid === r.to).titulo, notas: [] };
+      stats[r.to].notas.push(r.nota);
+    });
+    const rows = Object.values(stats).map(s => ({
+      filme: s.filme, vezes: s.notas.length, notaMedia: cypherRound1(s.notas.reduce((a, b) => a + b, 0) / s.notas.length).toFixed(1)
+    })).sort((a, b) => b.vezes - a.vezes || b.notaMedia - a.notaMedia || a.filme.localeCompare(b.filme)).slice(0, 5);
+    out.innerHTML = `<strong>[R4] Mais Populares (Cold Start):</strong>` + renderTable(rows);
+  } else if (step === 'C1' || step === 'C1_DUP') {
+    if (DB.nodes.some(n => n.uid === 'Filme:f13')) {
+      out.innerHTML = `<span style="color:#b91c1c; font-weight:700;">ERRO DE INTEGRIDADE (Constraint 'filme_id'):</span> Node(40) already exists with label :Filme and property filmeId='f13'. Transação inteira desfeita (ACID).`;
+      return;
+    }
+    DB.nodes.push({ uid: 'Filme:f13', label: 'Filme', filmeId: 'f13', titulo: 'Duna', ano: 2021, duracaoMin: 155 });
+    if (!DB.nodes.some(n => n.uid === 'Ator:Timothée Chalamet')) {
+      DB.nodes.push({ uid: 'Ator:Timothée Chalamet', label: 'Ator', nome: 'Timothée Chalamet' });
+    }
+    DB.rels.push({ type: 'DO_GENERO', from: 'Filme:f13', to: 'Genero:Ficção Científica' });
+    DB.rels.push({ type: 'ATUOU_EM', from: 'Ator:Timothée Chalamet', to: 'Filme:f13' });
+    DB.rels.push({ type: 'ASSISTIU', from: 'Usuario:u02', to: 'Filme:f13', nota: 5 });
+    DB.rels.push({ type: 'ASSISTIU', from: 'Usuario:u04', to: 'Filme:f13', nota: 5 });
+    DB.highlightNodes.add('Filme:f13');
+    DB.highlightNodes.add('Ator:Timothée Chalamet');
+    out.innerHTML = `<strong style="color:#15803d;">[C1] Duna criado e conectado!</strong> Added 2 labels, created 2 nodes, set 7 properties, created 4 relationships.`;
+  } else if (step === 'U1') {
+    const r = DB.rels.find(x => x.type === 'ASSISTIU' && x.from === 'Usuario:u04' && x.to === 'Filme:f05');
+    r.nota = 2;
+    DB.highlightNodes.add('Usuario:u04');
+    DB.highlightNodes.add('Filme:f05');
+    out.innerHTML = `<strong>[U1] Set 1 property:</strong> <code>O Lobo de Wall Street | novaNota: 2</code> (aresta atualizada!).`;
+  } else if (step === 'U2') {
+    const ana = DB.nodes.find(n => n.uid === 'Usuario:u01');
+    ana.plano = 'Premium';
+    ana.atualizadoEm = new Date().toISOString();
+    DB.highlightNodes.add('Usuario:u01');
+    out.innerHTML = `<strong>[U2] Set 2 properties:</strong> <code>{usuarioId: 'u01', nome: 'Ana', plano: 'Premium', atualizadoEm: '${ana.atualizadoEm}'}</code> — campo novo sem <code>ALTER TABLE</code>!`;
+  } else if (step === 'D1a') {
+    const hasDuna = DB.nodes.some(n => n.uid === 'Filme:f13');
+    if (!hasDuna) { out.innerHTML = `<em>Duna (f13) não está no banco. Execute C1 primeiro.</em>`; return; }
+    DB.highlightNodes.add('Filme:f13');
+    out.innerHTML = `<span style="color:#b91c1c; font-weight:700;">[D1a] ERRO ESPERADO:</span> <code>Cannot delete node&lt;Filme:f13&gt;, because it still has relationships.</code> O Neo4j impede relacionamentos órfãos.`;
+  } else if (step === 'D1b') {
+    const idx = DB.nodes.findIndex(n => n.uid === 'Filme:f13');
+    if (idx === -1) { out.innerHTML = `<em>Duna (f13) não encontrada no banco.</em>`; return; }
+    const beforeRels = DB.rels.length;
+    DB.nodes.splice(idx, 1);
+    DB.rels = DB.rels.filter(r => r.from !== 'Filme:f13' && r.to !== 'Filme:f13');
+    const delRels = beforeRels - DB.rels.length;
+    out.innerHTML = `<strong style="color:#15803d;">[D1b] DETACH DELETE executado:</strong> Deleted 1 node, deleted ${delRels} relationships. Ator Timothée Chalamet permanece sem filmes.`;
+  }
+  renderGraph();
+}
+
+function renderGraph() {
+  const svg = document.getElementById('graphSvg');
+  document.getElementById('simCountBadge').textContent = `${DB.nodes.length} nós · ${DB.rels.length} rels`;
+  const colors = { Usuario:'#14b8a6', Filme:'#3b82f6', Genero:'#f59e0b', Ator:'#a855f7' };
+  const groups = { Usuario: [], Filme: [], Genero: [], Ator: [] };
+  DB.nodes.forEach(n => groups[n.label].push(n));
+
+  const pos = {};
+  const layoutRow = (arr, y, xStart, xEnd) => {
+    arr.forEach((n, i) => {
+      const x = arr.length === 1 ? (xStart + xEnd) / 2 : xStart + (i * (xEnd - xStart)) / (arr.length - 1);
+      pos[n.uid] = { x, y };
+    });
+  };
+  layoutRow(groups.Usuario, 48, 55, 765);
+  layoutRow(groups.Filme, 152, 42, 778);
+  layoutRow(groups.Genero, 240, 80, 740);
+  layoutRow(groups.Ator, 298, 45, 775);
+
+  const hasHL = DB.highlightNodes.size > 0;
+  let html = '';
+  DB.rels.forEach(r => {
+    const p1 = pos[r.from], p2 = pos[r.to];
+    if (!p1 || !p2) return;
+    const isHL = DB.highlightRels.has(`${r.from}->${r.to}`);
+    const stroke = isHL ? '#facc15' : (r.type === 'ASSISTIU' ? '#475569' : '#334155');
+    const sw = isHL ? 3 : 1.2;
+    const op = hasHL && !isHL ? 0.25 : 0.85;
+    html += `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${stroke}" stroke-width="${sw}" opacity="${op}" />`;
+  });
+  DB.nodes.forEach(n => {
+    const p = pos[n.uid];
+    const isHL = DB.highlightNodes.has(n.uid);
+    const op = hasHL && !isHL ? 0.3 : 1;
+    const r = isHL ? 17 : 13;
+    const text = n.nome || n.titulo;
+    const shortTxt = text.length > 12 ? text.slice(0, 11) + '…' : text;
+    html += `<g opacity="${op}">
+      <circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${colors[n.label]}" stroke="${isHL ? '#facc15' : '#fff'}" stroke-width="${isHL ? 3 : 1.5}" />
+      <text x="${p.x}" y="${p.y + r + 11}" text-anchor="middle" font-size="9" fill="#e2e8f0" font-weight="${isHL ? '700' : '400'}">${shortTxt}</text>
+      <title>${n.label}: ${text}${n.plano ? ' (' + n.plano + ')' : ''}</title>
+    </g>`;
+  });
+  svg.innerHTML = html;
+}
+
+simReset();
+showSlide(0);
+</script>
+</body>
+</html>
